@@ -35,7 +35,9 @@ def xml_delete(base_prefix: str, path: str, collection: storage.BaseCollection,
     Read rfc4918-9.6 for info.
 
     """
+    print("ENTERED XML_DELETE")
     collection.delete(item_href)
+    print("XML_DELETE: delete() done")
 
     multistatus = ET.Element(xmlutils.make_clark("D:multistatus"))
     response = ET.Element(xmlutils.make_clark("D:response"))
@@ -49,6 +51,7 @@ def xml_delete(base_prefix: str, path: str, collection: storage.BaseCollection,
     status.text = xmlutils.make_response(200)
     response.append(status)
 
+    print("XML_DELETE: exiting")
     return multistatus
 
 
@@ -57,6 +60,7 @@ class ApplicationPartDelete(ApplicationBase):
     def do_DELETE(self, environ: types.WSGIEnviron, base_prefix: str,
                   path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage DELETE request."""
+        print("RECEIVED ON DELETE")
         access = Access(self._rights, user, path)
         if not access.check("w"):
             return httputils.NOT_ALLOWED
@@ -72,6 +76,7 @@ class ApplicationPartDelete(ApplicationBase):
                 return httputils.PRECONDITION_FAILED
             hook_notification_item_list = []
             if isinstance(item, storage.BaseCollection):
+                print("do_DELETE is istance")
                 if self._permit_delete_collection:
                     if access.check("d", item):
                         logger.info("delete of collection is permitted by config/option [rights] permit_delete_collection but explicit forbidden by permission 'd': %s", path)
@@ -81,18 +86,23 @@ class ApplicationPartDelete(ApplicationBase):
                         logger.info("delete of collection is prevented by config/option [rights] permit_delete_collection and not explicit allowed by permission 'D': %s", path)
                         return httputils.NOT_ALLOWED
                 for i in item.get_all():
-                    hook_notification_item_list.append(
-                        HookNotificationItem(
-                            notification_item_type=HookNotificationItemTypes.DELETE,
-                            path=access.path,
-                            content=i.uid,
-                            uid=i.uid,
-                            old_content=item.serialize(),  # type: ignore
-                            new_content=None
-                        )
+                    nt_item = HookNotificationItem(
+                        notification_item_type=HookNotificationItemTypes.DELETE,
+                        path=access.path,
+                        content=i.uid,
+                        uid=i.uid,
+                        old_content=item.serialize(),  # type: ignore
+                        new_content=None
                     )
+                    print(nt_item.to_json())
+                    hook_notification_item_list.append(
+                        nt_item,
+                    )
+                    print("do_DELETE append thing")
                 xml_answer = xml_delete(base_prefix, path, item)
+                print("do_DELETE isinstance exited xml_delete")
             else:
+                print("do_DELETE NOT is istance")
                 assert item.collection is not None
                 assert item.href is not None
                 hook_notification_item_list.append(
@@ -107,6 +117,7 @@ class ApplicationPartDelete(ApplicationBase):
                 )
                 xml_answer = xml_delete(
                     base_prefix, path, item.collection, item.href)
+                print("do_DELETE is not instance exited xml_delete")
             for notification_item in hook_notification_item_list:
                 self._hook.notify(notification_item)
             headers = {"Content-Type": "text/xml; charset=%s" % self._encoding}
