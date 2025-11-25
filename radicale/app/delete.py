@@ -94,7 +94,9 @@ class ApplicationPartDelete(ApplicationBase):
                         old_content=item.serialize(),  # type: ignore
                         new_content=None
                     )
-                    print(nt_item.to_json())
+                    # print(nt_item.to_json())
+                    x = nt_item.to_json()
+                    print(f"len = {len(x.encode('utf-8'))}")
                     hook_notification_item_list.append(
                         nt_item,
                     )
